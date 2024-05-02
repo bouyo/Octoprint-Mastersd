@@ -1,38 +1,58 @@
 <div>
-    <h3 data-bind="text: 'MasterSD'"></h3>
-    <p data-bind="text: 'Printer Status: ' + printer.stateString()" style="padding-bottom: 2px;"></p>
-    <!-- <button data-bind="attr: {disabled: buttonState}">SEND TO SD</button> -->
-
     <div>
+        <div class="status-line">
+            <p class="master-title">MasterSD status:</p>
+            <p class="master-status" data-bind="text: masterStatus, style: { color: (connected() && !isBusy()) ? color_active_txt : color_passive_txt }"></p>
+        </div>
+        
         <label for="mastersd_ports">MasterSD Port</label>
-        <select id="mastersd_ports" data-bind="options: portOptions, value: selectedPort"></select>
-        <button data-bind="click: connectMasterSD, attr: {disabled: connectBtnLocked}">CONNECT</button>
-    </div>
-
-    <div class="state-graphic">
-        <i class="fas fa-computer state-icon" data-bind="style: { color: rpiColor }"></i>
-        <div class="dot-row row-rpi">
-            <span class="dot" data-bind="style: { backgroundColor: rpiColor }"></span>
-            <span class="dot" data-bind="style: { backgroundColor: rpiColor }"></span>
-            <span class="dot" data-bind="style: { backgroundColor: rpiColor }"></span>
+        <div class="port-input">
+            <select class="port-select" id="mastersd_ports" data-bind="options: portOptions, value: selectedPort, attr: { disabled: connected() }"></select>
+            <button class="btn conn-btn" data-bind="click: connectMasterSD, text: connected() ? 'Disconnect' : 'Connect', attr: {disabled: isBusy}"></button>
         </div>
-        <i class="fas fa-sd-card state-icon"></i>
-        <div class="dot-row row-3d">
-            <span class="dot" data-bind="style: { backgroundColor: printerColor }"></span>
-            <span class="dot" data-bind="style: { backgroundColor: printerColor }"></span>
-            <span class="dot" data-bind="style: { backgroundColor: printerColor }"></span>
-        </div>
-        <i class="fas fa-print state-icon" data-bind="style: { color: printerColor }"></i>
+        <label class="checkbox">
+            <input type="checkbox" id="mastersd-autoconnect">
+            Auto-connect on server startup
+        </label>
+        <hr>
     </div>
 
     <div>
-        <p data-bind="text: 'SD in control of: ' + activeMaster()"></p>
-        <button data-bind="click: switchSd, text: switchSdText, attr: {disabled: switchSdDisabled}"></button>
+        <p class="sd-status" data-bind="text: 'SD ' + activeMaster()"></p>
+            
+        <div class="state-graphic">
+            <i class="fas fa-computer state-icon" data-bind="style: { color: rpiColor }"></i>
+            <div class="dot-row row-rpi">
+                <span class="dot" data-bind="style: { backgroundColor: rpiColor }"></span>
+                <span class="dot" data-bind="style: { backgroundColor: rpiColor }"></span>
+                <span class="dot" data-bind="style: { backgroundColor: rpiColor }"></span>
+            </div>
+            <i class="fas fa-sd-card state-icon" data-bind="style: { color: connected() ? color_active : color_passive }"></i>
+            <div class="dot-row row-3d">
+                <span class="dot" data-bind="style: { backgroundColor: printerColor }"></span>
+                <span class="dot" data-bind="style: { backgroundColor: printerColor }"></span>
+                <span class="dot" data-bind="style: { backgroundColor: printerColor }"></span>
+            </div>
+            <i class="fas fa-print state-icon" data-bind="style: { color: printerColor }"></i>
+        </div>
+        
+        <button class="btn control-btn" data-bind="click: switchSd, text: switchSdText, attr: {disabled: switchSdDisabled}"></button>
+        <hr>
     </div>
+    
 
-    <div>
-        <p>Upload files to SD</p>
-        <input type="file" accept=".gcode" data-bind="event: { change: function() { uploadFiles($element.files) } }">UPLOAD FILE</input>
+    <div class="file-list-col">
+        <div>
+            <p class="sd-file-title">SD Storage</p>
+            <p class="sd-space" data-bind="text: 'Free: ' + freeSpace() + ' / ' + allSpace()"></p>
+            <p class="folder-location" data-bind="text: folderLocation, visible: folderLocation() !== ''"></p>
+        </div>
+        
+
+    </div>
+    
+    
+        
     </div>
     
 </div>

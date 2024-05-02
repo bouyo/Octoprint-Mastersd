@@ -8,8 +8,10 @@ $(function() {
     function MastersdViewModel(parameters) {
         var self = this;
 
-        const color_active = '#FFCA28';
-        const color_passive = '#E0F2F1';
+        self.color_active = '#8BC34A';
+        self.color_passive = '#CFD8DC';
+        self.color_active_txt = '#7CB342';
+        self.color_passive_txt = '#90A4AE';
 
         self.printer = parameters[0];
         self.connection = parameters[1];
@@ -20,9 +22,17 @@ $(function() {
         // self.settingsViewModel = parameters[1];
 
         // TODO: Implement your plugin's view model here.
-        
+        self.free_space = -1;
+        self.taken_space = -1;
+
         // Is masterSD connected?
         self.connected = ko.observable(false);
+
+        // Is masterSD busy?
+        self.isBusy = ko.observable(false);
+
+        // Is switching?
+        self.isSwitching = ko.observable(false);
 
         // Is SD card present?
         self.sd_present = ko.observable(null);
@@ -37,22 +47,33 @@ $(function() {
         // Upload to SD card button disabled
         self.uploadDisabled = ko.observable(true);
 
+        self.folderLocation = ko.observable('');
+
+        self.masterStatus = ko.pureComputed(function() {
+            if (!self.connected()){
+                return 'Offline';
+            } else if (self.isBusy()){
+                return 'Busy';
+            }
+            return 'Online';
+        });
+
         self.rpiColor = ko.pureComputed(function() {
             if (self.sd_control()){
-                return color_active;
+                return self.color_active;
             } else {
-                return color_passive;
+                return self.color_passive;
             }
         });
 
         self.printerColor = ko.pureComputed(function() {
             if (self.sd_control()){
-                return color_passive;
+                return self.color_passive;
             }
             if (self.sd_control() === null){
-                return color_passive;
+                return self.color_passive;
             }
-            return color_active;
+            return self.color_active;
         });
 
         self.buttonState = ko.computed(function (){
@@ -66,11 +87,11 @@ $(function() {
             var name;
             
             if (self.sd_control()){
-                name = "MasterSD";
+                name = "connected to MasterSD";
             }else if (self.sd_control() === null){
-                name = "Unknown";
+                name = "connection unknown";
             }else{
-                name = "3D Printer";
+                name = "connected to the 3D Printer";
             }
             log.info(name);
             return name;
@@ -92,9 +113,77 @@ $(function() {
             }
         });
 
+        self.getSizeUnit = function(space){
+            var unit = '';
+            var count = 0;
+            if (space < 0){
+                return '-';
+            }
+            if(space/1000 >= 1 && count < 4){
+                count += 1;
+                space = space / 1000;
+            }
+            switch (count){
+                case 1:
+                    unit = 'KB';
+                    break;
+                case 2:
+                    unit = 'MB';
+                    break;
+                case 3:
+                    unit = 'GB';
+                    break;
+                default:
+                    unit = 'B';
+            }
+            return space.toFixed(1) + unit
+        }
+
+        self.freeSpace = ko.pureComputed(function() {
+            var free_space = self.free_space;
+            return self.getSizeUnit(free_space);
+        });
+
+        self.allSpace = ko.pureComputed(function() {
+            var free_space = self.free_space;
+            var taken_space = self.taken_space;
+
+            return self.getSizeUnit(free_space + taken_space);
+        });
+
+        self.sleep = function(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        self.getSdInfo = function(){
+            log.info("Attempting to get SD data")
+            if (self.connected() && self.sd_control()){
+                self.isBusy(true);
+                self.isSwitching(true);
+                $.ajax({
+                    url: "plugin/mastersd/get_info",
+                    type: "GET",
+                    dataType: "json",
+                    error: (data) => {
+                        log.info("Get info failed!");
+                        log.info(data);
+                    },
+                    success: (data) => {
+                        log.info("Get info success!");
+                        log.info(data);
+                    },
+                    complete: (data) => {
+                        self.isBusy(false);
+                        self.isSwitching(false);
+                    }
+                });
+            }
+        }
+
         self.switchSd = function(){
             log.info("Attempting to switch the SD master")
             if (self.connected()){
+                self.isSwitching(true);
                 $.ajax({
                     url: "plugin/mastersd/switch_control",
                     type: "GET",
@@ -108,12 +197,17 @@ $(function() {
         self.failedSwitch = function(data){
             log.info("Switch failed");
             log.info(data);
+            self.isSwitching(false);
         }
 
         self.updateSwitch = function(data){
             log.info("Switch success!");
             log.info(data);
             self.sd_control(data);
+            self.isSwitching(false);
+            if (data){
+                self.sleep(100).then(() => self.getSdInfo());
+            }
         }
 
         self.setDisconnected = function(){
@@ -203,47 +297,57 @@ $(function() {
             }            
             
             return sd_ports;
-       });
-
-       self.connectBtnLocked = ko.computed(function (){
-            var sd_ports = self.portOptions();
-            var connected = self.connected();
-
-            log.info("Computing the button state...")
-            if (sd_ports.length == 1){
-                return true;
-            }
-            if (connected) {
-                return true;
-            }
-            return false;
         });
-        
+
+       
         self.connectMasterSD = function(){
-            let ports = [];
-            let selectedPort = self.selectedPort();
-            let allPorts = self.portOptions();
-            log.info("Selected port: " + selectedPort);
-            log.info("All ports: " + allPorts);
-            if (selectedPort === "AUTO"){
-                ports = allPorts.slice(1);
+            self.isBusy(true);
+            if (!self.connected()){
+                let ports = [];
+                let selectedPort = self.selectedPort();
+                let allPorts = self.portOptions();
+                log.info("Selected port: " + selectedPort);
+                log.info("All ports: " + allPorts);
+                if (selectedPort === "AUTO"){
+                    ports = allPorts.slice(1);
+                } else {
+                    ports.push(selectedPort);
+                }
+                log.info("Connecting to masterSD!");
+                log.info("Testing ports: " + JSON.stringify(ports));
+                $.ajax({
+                    url: "plugin/mastersd/connect",
+                    contentType: "application/json; charset=utf-8",
+                    type: "POST",
+                    dataType: "json",
+                    headers: {
+                        "X-Api-Key": UI_API_KEY,
+                    },
+                    data: JSON.stringify({ports: ports}),
+                    error: self.failedToComm,
+                    success: self.updateConnected
+                });
             } else {
-                ports.push(selectedPort);
-            }
-            log.info("Connecting to masterSD!");
-            log.info("Testing ports: " + JSON.stringify(ports));
-            $.ajax({
-                url: "plugin/mastersd/connect",
-                contentType: "application/json; charset=utf-8",
-                type: "POST",
-                dataType: "json",
-                headers: {
-                    "X-Api-Key": UI_API_KEY,
-                },
-                data: JSON.stringify({ports: ports}),
-                error: self.failedToComm,
-                success: self.updateConnected
-            });
+                log.info("Trying to disconnect!");
+                $.ajax({
+                    url: "plugin/mastersd/disconnect",
+                    type: "GET",
+                    dataType: "json",
+                    error: (data) => {
+                        log.info("Disconnection failed!");
+                        log.info(data);
+                        self.isBusy(false);
+                    },
+                    success: (data) => {
+                        log.info("Disconnected!");
+                        log.info(data);
+                        self.isBusy(false);
+                        self.sd_control(null);
+                        self.sd_present(null)
+                        self.connected(false);
+                    }
+                });
+            }            
         }
 
         self.failedToComm = function(data){
@@ -252,6 +356,7 @@ $(function() {
             self.sd_control(null);
             self.connected(false);
             self.sd_present(null)
+            self.isBusy(false);
         }
 
         self.updateConnected = function(data){
@@ -259,6 +364,10 @@ $(function() {
             log.info(data);
             self.sd_control(data);
             self.connected(true);
+            self.isBusy(false);
+            if (data){
+                self.sleep(100).then(() => self.getSdInfo());
+            }
         }
 
 

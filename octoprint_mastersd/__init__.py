@@ -1,4 +1,4 @@
-import serial, glob
+import serial
 import octoprint.plugin
 from octoprint.filemanager.destinations import FileDestinations
 import flask
@@ -17,15 +17,18 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
     def is_control(self, s):
         self._logger.info("Checking control...")
         s.write(b'is_control\n')
+        ret = None
         while(True):
             a = s.readline()
-            self._logger.info("Received: %s", a.decode('ascii'))
-            if (a == b'true\n'):
-                return True                
-            elif (a == b'false\n'):
-                return False
+            if(a == b'done\n'):
+                self._logger.info("Success!")
+                return ret
             else:
-                return None
+                self._logger.info("Received: %s", a.decode('ascii'))
+                if (a == b'true\n'):
+                    ret = True                
+                elif (a == b'false\n'):
+                    ret = False
             
     def take_control(self, s):
         self._logger.info("Taking control of the SD card!")
@@ -49,8 +52,21 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                 return True
             else:
                 self._logger.info("Failed")
+                self._logger.info(a.decode('ascii'))
                 return False
-            
+                          
+    def get_info(self, s):
+        data = ''
+        s.write(b'get_info\n')  # Send data
+        while(True):
+            a = s.readline()
+            if(a == b'done\n'):
+                self._logger.info("Success!")
+                return data        
+            else:
+                data += a.decode('ascii')
+                self._logger.info(a.decode('ascii'))
+    
     def write_file(self, s, path, name):
         self._logger.info("Writing to the SD card!")
         
@@ -151,6 +167,34 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
             status=400
         )
     
+    @octoprint.plugin.BlueprintPlugin.route("/disconnect", methods=["GET"])
+    def mastersd_disconnect(self):
+        self._logger.info("Attempting to disconnect from masterSD!")
+        
+        if (self.ser):
+            if (self.ser.is_open):
+                if (self.control):
+                    self._logger.info("Sending command to return control over serial")
+                    ret = self.return_control(self.ser)
+                    if (ret):
+                        self.control = not self.control
+                    else:
+                        self._logger.info("Failed to return control")
+                self.ser.close()
+                self.ser = None
+                self._logger.info("Disconnected successfully!")
+                return flask.jsonify(success=True)
+            else:
+                return flask.Response(
+                    "Serial is not open!",
+                    status=400
+                )
+                
+        return flask.Response(
+            "Could not disconnect",
+            status=400
+        )
+    
     @octoprint.plugin.BlueprintPlugin.route("/write_sd", methods=["POST"])
     def mastersd_write(self):
         self._logger.info("Attempting to write to SD!")
@@ -209,6 +253,44 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
             "Could not switch the state of the SD",
             status=400
         )
+    
+    @octoprint.plugin.BlueprintPlugin.route("/get_info", methods=["GET"])
+    def mastersd_get_info(self):
+        self._logger.info("Attempting to get info from the SD!")
+        
+        if (self.ser is None):
+            return flask.Response(
+                "Serial communication closed",
+                status=400
+            )        
+        if (not self.ser.is_open):
+            return flask.Response(
+                "Serial communication closed",
+                status=400
+            )
+        if (not self.control):
+            return flask.Response(
+                "MasterSD not in control",
+                status=400
+            )       
+        
+        self._logger.info("Sending command to get_info over serial")
+        data = self.get_info(self.ser)
+        self._logger.info(f"Received: {data}")
+        
+        if (data):
+            self.get_sd_data(data)
+            return flask.jsonify(data)
+        else:
+            self._logger.info("No response!")
+            pass
+    
+        return flask.Response(
+            "Could not get info from the SD",
+            status=400
+        )
+
+
     
     
 
