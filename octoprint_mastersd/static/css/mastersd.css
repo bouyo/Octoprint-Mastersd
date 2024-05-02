@@ -1,0 +1,25 @@
+/* TODO: Have your plugin's CSS files generated to here. */
+.state-icon {
+    font-size: 2.7em !important;
+    display: inline-block;
+}
+
+.dot {
+    height: 8px;
+    width: 8px;
+    background-color: #bbb;
+    border-radius: 50%;
+    margin-inline: 3px;
+    display: inline-block;
+}
+
+.dot-row {
+    display: inline-block;
+    padding-inline: 13px;
+}
+
+.state-graphic {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}

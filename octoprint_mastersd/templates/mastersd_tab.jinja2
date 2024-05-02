@@ -1,0 +1,38 @@
+<div>
+    <h3 data-bind="text: 'MasterSD'"></h3>
+    <p data-bind="text: 'Printer Status: ' + printer.stateString()" style="padding-bottom: 2px;"></p>
+    <!-- <button data-bind="attr: {disabled: buttonState}">SEND TO SD</button> -->
+
+    <div>
+        <label for="mastersd_ports">MasterSD Port</label>
+        <select id="mastersd_ports" data-bind="options: portOptions, value: selectedPort"></select>
+        <button data-bind="click: connectMasterSD, attr: {disabled: connectBtnLocked}">CONNECT</button>
+    </div>
+
+    <div class="state-graphic">
+        <i class="fas fa-computer state-icon" data-bind="style: { color: rpiColor }"></i>
+        <div class="dot-row row-rpi">
+            <span class="dot" data-bind="style: { backgroundColor: rpiColor }"></span>
+            <span class="dot" data-bind="style: { backgroundColor: rpiColor }"></span>
+            <span class="dot" data-bind="style: { backgroundColor: rpiColor }"></span>
+        </div>
+        <i class="fas fa-sd-card state-icon"></i>
+        <div class="dot-row row-3d">
+            <span class="dot" data-bind="style: { backgroundColor: printerColor }"></span>
+            <span class="dot" data-bind="style: { backgroundColor: printerColor }"></span>
+            <span class="dot" data-bind="style: { backgroundColor: printerColor }"></span>
+        </div>
+        <i class="fas fa-print state-icon" data-bind="style: { color: printerColor }"></i>
+    </div>
+
+    <div>
+        <p data-bind="text: 'SD in control of: ' + activeMaster()"></p>
+        <button data-bind="click: switchSd, text: switchSdText, attr: {disabled: switchSdDisabled}"></button>
+    </div>
+
+    <div>
+        <p>Upload files to SD</p>
+        <input type="file" accept=".gcode" data-bind="event: { change: function() { uploadFiles($element.files) } }">UPLOAD FILE</input>
+    </div>
+    
+</div>
