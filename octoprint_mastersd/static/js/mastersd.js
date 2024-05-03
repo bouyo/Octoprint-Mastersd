@@ -45,9 +45,52 @@ $(function() {
         // Upload to SD card button disabled
         self.uploadDisabled = ko.observable(true);
 
-        self.folderLocation = ko.observable('');
+        self.activeFolder = ko.observable('/sdcard');
+        self.visibleFiles = ko.observableArray([]);
+        self.visibleFolders = ko.observableArray([]);
 
         self.sdFiles = ko.observable(null);
+
+        self.currentPath = ko.pureComputed(function() {
+            var activeFolder = self.activeFolder();
+            var folders_all = activeFolder.split('/');
+            var folders = folders_all.slice(2);
+            return folders;
+        });
+
+        self.folderContent = ko.computed(function() {
+            var activeFolder = self.activeFolder();
+            if (self.sdFiles()){
+                var sdFiles = Object.assign({},self.sdFiles());
+                var files = [];
+                var folders = [];
+                var folder_id = sdFiles.folders.indexOf(activeFolder);
+                if(folder_id >= 0){
+                    files = sdFiles.files.filter((file) => file.folder == folder_id);
+                    sdFiles.folders.forEach((folder_path) => {
+                        var path_list = folder_path.split('/');
+                        var folder_name = path_list.pop();
+                        var parent_path = path_list.join('/');
+                        if (parent_path == activeFolder){
+                            folders.push({
+                                name: folder_name,
+                                path: folder_path
+                            });
+                        }
+                    });
+                    self.visibleFiles(files);
+                    self.visibleFolders(folders);
+                    return []
+                }else{
+                    log.info("Could not find active folder");
+                    return []
+                }
+            }else{
+                log.info("Could not find active folder");
+                return []
+            }
+            
+        });
 
         self.masterStatus = ko.pureComputed(function() {
             if (!self.connected()){
@@ -175,6 +218,7 @@ $(function() {
                         log.info("Get info success!");
                         log.info(data);
                         self.sdFiles(Object.assign({},data));
+                        self.activeFolder('/sdcard');
                     },
                     complete: (data) => {
                         self.isBusy(false);
@@ -213,6 +257,7 @@ $(function() {
                 self.sleep(100).then(() => self.getSdInfo());
             } else {
                 self.sdFiles(null);
+                self.activeFolder('/sdcard');
             }
         }
 
@@ -221,6 +266,7 @@ $(function() {
             self.sd_present(null);
             self.sd_control(null);
             self.sdFiles(null);
+            self.activeFolder('/sdcard');
         }
         
         self.uploadFiles = function(files){
@@ -353,6 +399,7 @@ $(function() {
                         log.info("Disconnected!");
                         log.info(data);
                         self.sdFiles(null);
+                        self.activeFolder('/sdcard');
                         self.isBusy(false);
                         self.sd_control(null);
                         self.sd_present(null)
@@ -366,6 +413,7 @@ $(function() {
             log.info("Connection failed");
             log.info(data);
             self.sdFiles(null);
+            self.activeFolder('/sdcard');
             self.sd_control(null);
             self.connected(false);
             self.sd_present(null)

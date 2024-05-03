@@ -71,23 +71,48 @@ hr {
     width: 100px;
 }
 
+.sd-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
 .sd-file-title{
     font-size: medium;
     margin: 0;
-    padding-left: 5px;
 }
-
-.folder-location {
+.sd-space {
+    font-size: 12px;
     margin: 0;
 }
-
-.file-list-col{
-    display: flex;
-    flex-direction: column;
-    width: 300px;
+.location-icon{
+    padding-right: 7px;
+    color: #90A4AE;
+    line-height: normal;
 }
-
-.upload-div {
+.sd-folder-div{
     display: flex;
-    flex-direction: row;
+    align-items: center;
+    margin-bottom: 5px;
+}
+.folder-view{
+    overflow: hidden;
+    overflow-y: scroll;
+    height: 220px;
+    border: 1px solid #90A4AE;
+    border-radius: 5px;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+.list-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid #90A4AE;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.list-item-name{
+    display: flex;
+    align-items: center;
 }

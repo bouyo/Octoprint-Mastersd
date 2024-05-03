@@ -40,19 +40,44 @@
         <hr>
     </div>
     
-
-    <div class="file-list-col">
-        <div>
+    <div data-bind="visible: sdFiles() !== null">
+        <div class="sd-header">
             <p class="sd-file-title">SD Storage</p>
             <p class="sd-space" data-bind="text: 'Free: ' + freeSpace() + ' / ' + allSpace()"></p>
-            <p class="folder-location" data-bind="text: folderLocation, visible: folderLocation() !== ''"></p>
+            <i class="fas fa-rotate"></i>
         </div>
         
-
-    </div>
-    
-    
+        <div class="sd-folder-div">
+            <i class="fas fa-sd-card fa-lg location-icon"></i>
+            <i class="fas fa-chevron-right fa-sm location-icon"></i>
+            <div data-bind="foreach: currentPath">
+                <p class="location-icon" data-bind="text: $data"></p>
+                <i class="fas fa-chevron-right fa-sm location-icon"></i>
+            </div>
+        </div>
         
+        <ul class="folder-view">
+            <div data-bind="foreach: visibleFolders">
+                <li class="list-item">
+                    <div class="list-item-name">
+                        <i class="fas fa-folder"></i>
+                        <p data-bind="text: name"></p>
+                    </div>
+                    <i class="fas fa-trash"></i>
+                </li>
+            </div>
+            <div data-bind="foreach: visibleFiles">
+                <li class="list-item">
+                    <div class="list-item-name">
+                        <i class="fas fa-file"></i>
+                        <p data-bind="text: name"></p>
+                    </div>
+                    <p data-bind="text: $root.getSizeUnit(Number(size))"></p>
+                    <i class="fas fa-trash"></i>
+                </li>
+            </div>
+            
+        </ul>        
     </div>
     
 </div>
