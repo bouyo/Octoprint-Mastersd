@@ -22,9 +22,7 @@ $(function() {
         // self.settingsViewModel = parameters[1];
 
         // TODO: Implement your plugin's view model here.
-        self.free_space = -1;
-        self.taken_space = -1;
-
+        
         // Is masterSD connected?
         self.connected = ko.observable(false);
 
@@ -48,6 +46,8 @@ $(function() {
         self.uploadDisabled = ko.observable(true);
 
         self.folderLocation = ko.observable('');
+
+        self.sdFiles = ko.observable(null);
 
         self.masterStatus = ko.pureComputed(function() {
             if (!self.connected()){
@@ -119,36 +119,39 @@ $(function() {
             if (space < 0){
                 return '-';
             }
-            if(space/1000 >= 1 && count < 4){
+            while(space/1000 >= 1 && count < 2){
                 count += 1;
                 space = space / 1000;
             }
             switch (count){
                 case 1:
-                    unit = 'KB';
-                    break;
-                case 2:
                     unit = 'MB';
                     break;
-                case 3:
+                case 2:
                     unit = 'GB';
                     break;
                 default:
-                    unit = 'B';
+                    unit = 'KB';
             }
-            return space.toFixed(1) + unit
+            return space.toFixed(2) + unit
         }
 
         self.freeSpace = ko.pureComputed(function() {
-            var free_space = self.free_space;
-            return self.getSizeUnit(free_space);
+            if (self.sdFiles()){
+                var sdFiles = Object.assign({}, self.sdFiles());
+                return self.getSizeUnit(Number(sdFiles.free_size));
+            }else{
+                return '-'
+            }            
         });
 
         self.allSpace = ko.pureComputed(function() {
-            var free_space = self.free_space;
-            var taken_space = self.taken_space;
-
-            return self.getSizeUnit(free_space + taken_space);
+            if (self.sdFiles()){
+                var sdFiles = Object.assign({}, self.sdFiles());
+                return self.getSizeUnit(Number(sdFiles.free_size) + Number(sdFiles.taken_size));
+            }else{
+                return '-'
+            }
         });
 
         self.sleep = function(ms) {
@@ -171,6 +174,7 @@ $(function() {
                     success: (data) => {
                         log.info("Get info success!");
                         log.info(data);
+                        self.sdFiles(Object.assign({},data));
                     },
                     complete: (data) => {
                         self.isBusy(false);
@@ -207,6 +211,8 @@ $(function() {
             self.isSwitching(false);
             if (data){
                 self.sleep(100).then(() => self.getSdInfo());
+            } else {
+                self.sdFiles(null);
             }
         }
 
@@ -214,6 +220,7 @@ $(function() {
             self.connected(false);
             self.sd_present(null);
             self.sd_control(null);
+            self.sdFiles(null);
         }
         
         self.uploadFiles = function(files){
@@ -313,20 +320,24 @@ $(function() {
                 } else {
                     ports.push(selectedPort);
                 }
-                log.info("Connecting to masterSD!");
-                log.info("Testing ports: " + JSON.stringify(ports));
-                $.ajax({
-                    url: "plugin/mastersd/connect",
-                    contentType: "application/json; charset=utf-8",
-                    type: "POST",
-                    dataType: "json",
-                    headers: {
-                        "X-Api-Key": UI_API_KEY,
-                    },
-                    data: JSON.stringify({ports: ports}),
-                    error: self.failedToComm,
-                    success: self.updateConnected
-                });
+                if (ports.length > 0){
+                    log.info("Connecting to masterSD!");
+                    log.info("Testing ports: " + JSON.stringify(ports));
+                    $.ajax({
+                        url: "plugin/mastersd/connect",
+                        contentType: "application/json; charset=utf-8",
+                        type: "POST",
+                        dataType: "json",
+                        headers: {
+                            "X-Api-Key": UI_API_KEY,
+                        },
+                        data: JSON.stringify({ports: ports}),
+                        error: self.failedToComm,
+                        success: self.updateConnected
+                    });
+                } else {
+                    log.info("No available port found");
+                }                
             } else {
                 log.info("Trying to disconnect!");
                 $.ajax({
@@ -341,6 +352,7 @@ $(function() {
                     success: (data) => {
                         log.info("Disconnected!");
                         log.info(data);
+                        self.sdFiles(null);
                         self.isBusy(false);
                         self.sd_control(null);
                         self.sd_present(null)
@@ -353,6 +365,7 @@ $(function() {
         self.failedToComm = function(data){
             log.info("Connection failed");
             log.info(data);
+            self.sdFiles(null);
             self.sd_control(null);
             self.connected(false);
             self.sd_present(null)
