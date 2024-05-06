@@ -32,7 +32,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
         for i, line in enumerate(lines):
             if (i < len(lines) - 2):
                 # files & folders part
-                if ("s: " in lines[i+1]):
+                if ("/sdcard" in line and "s: " in lines[i+1]):
                     # is file
                     size = lines[i+1].split(" ")[-1]
                     path_split = line.rsplit("/", 1)
@@ -50,8 +50,8 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                     files.append(file_obj)
                 else:
                     # is folder
-                    if (line in folders):
-                        folders.append(folder)
+                    if ("/sdcard" in line and line not in folders):
+                        folders.append(line)
             else:
                 # Size data
                 data = line.split(" ")[-1]
@@ -175,6 +175,19 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                     elif (res_c > 2):
                         return False
             return True
+        
+    def delete_file(self, s, path):
+        s.write(b'del ' + path.encode('ascii'))  # Send data
+        while (True):
+            a = s.readline()
+            if (a == b'done\n'):
+                self._logger.info("Success!")
+                return True
+            elif (a == b'failed\n'):
+                self._logger.info("Wrong filename!")
+                return False
+            else:
+                self._logger.info(a.decode('ascii'))
 
     def on_after_startup(self):
         self._logger.info("Master SD backend")
@@ -344,6 +357,30 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
         return flask.Response(
             "Could not get info from the SD",
+            status=400
+        )
+    
+    @octoprint.plugin.BlueprintPlugin.route("/delete", methods=["POST"])
+    def mastersd_delete(self):
+        self._logger.info("Attempting to delete from SD!")
+        data = flask.request.json
+        path = data.get('path')
+
+        if (not path):
+            return flask.Response(
+                "Path is None",
+                status=400
+            )
+
+        short_path = path.replace("/sdcard/", "")
+        self._logger.info(f"Deleting: {short_path}")       
+        res = self.delete_file(self.ser, short_path)
+        if (res):
+            self._logger.info("Delete successful!")
+            return flask.jsonify(success=True)
+
+        return flask.Response(
+            "Could not delete file!",
             status=400
         )
 

@@ -15,6 +15,8 @@ $(function() {
 
         self.printer = parameters[0];
         self.connection = parameters[1];
+
+        self.delete_file_path = '';
         log.info("Master SD frontend");
         
         // assign the injected parameters, e.g.:
@@ -51,12 +53,85 @@ $(function() {
 
         self.sdFiles = ko.observable(null);
 
+        self.dialogTitle = ko.observable('');
+        self.dialogContent = ko.observable('');
+
         self.currentPath = ko.pureComputed(function() {
             var activeFolder = self.activeFolder();
             var folders_all = activeFolder.split('/');
             var folders = folders_all.slice(2);
-            return folders;
+            var out = [];
+            var path = "/sdcard";
+
+            log.info(folders);
+
+            if (folders.length > 0){
+                folders.forEach((folder) => {
+                    path += '/' + folder;
+                    out.push({
+                        name: folder,
+                        path: path
+                    });
+                });
+            }
+
+            log.info(out);
+            
+            return out;
         });
+
+        self.folderClick = function(folder){
+            if (folder){
+                var folder_path = folder.path;
+                if (folder_path){
+                    if (folder_path != self.activeFolder()){
+                        log.info("Folder click");
+                        self.activeFolder(folder_path);
+                    }
+                }
+            }            
+        }
+
+        self.attemptFileDelete = function(folder, file){
+            var path = folder + '/' + file.name;
+            log.info("Attempting to delete " + path);
+            $.ajax({
+                url: "plugin/mastersd/delete",
+                contentType: "application/json; charset=utf-8",
+                type: "POST",
+                dataType: "json",
+                headers: {
+                    "X-Api-Key": UI_API_KEY,
+                },
+                data: JSON.stringify({path: path}),
+                error: (data) => {
+                    log.info("Error!");
+                    log.info(data);
+                },
+                success: (data) => {
+                    log.info("File deleted!");
+                    var sdFiles = Object.assign({},self.sdFiles());
+                    sdFiles.free_size = (Number(sdFiles.free_size) + Number(file.size)).toString();
+                    sdFiles.taken_size = (Number(sdFiles.taken_size) - Number(file.size)).toString();
+                    var files = sdFiles.files.filter((f) => {
+                        return JSON.stringify(file) !== JSON.stringify(f)
+                    });
+                    sdFiles.files = files.map(f => ({...f}));
+                    log.info(sdFiles);
+                    self.sdFiles(Object.assign({},sdFiles));
+                }
+            });
+        }
+
+        self.deleteFile = function(file){
+            self.dialogTitle("Delete " + file.name);
+            self.dialogContent("Are you sure you want to delete " + file.name + "?")
+            self.showDialog("#sidebar_simpleDialog", function(dialog){             
+                var sdFiles = Object.assign({},self.sdFiles());   
+                self.attemptFileDelete(sdFiles.folders[file.folder], file);
+                dialog.modal('hide');
+            });                
+        }
 
         self.folderContent = ko.computed(function() {
             var activeFolder = self.activeFolder();
@@ -67,12 +142,13 @@ $(function() {
                 var folder_id = sdFiles.folders.indexOf(activeFolder);
                 if(folder_id >= 0){
                     files = sdFiles.files.filter((file) => file.folder == folder_id);
-                    sdFiles.folders.forEach((folder_path) => {
+                    sdFiles.folders.forEach((folder_path, index) => {
                         var path_list = folder_path.split('/');
                         var folder_name = path_list.pop();
                         var parent_path = path_list.join('/');
                         if (parent_path == activeFolder){
                             folders.push({
+                                id: index,
                                 name: folder_name,
                                 path: folder_path
                             });
@@ -462,7 +538,27 @@ $(function() {
         self.onBeforeBinding = function() {
             log.info("Printer State Loaded:");
             log.info(self.printer);
-          }
+        }
+
+        self.showDialog = function(dialogId, confirmFunction){
+            // show dialog
+            // sidebar_deleteFilesDialog
+            var myDialog = $(dialogId);
+            var confirmButton = $("button.btn-confirm", myDialog);
+            var cancelButton = $("button.btn-cancel", myDialog);
+            //var dialogTitle = $("h3.modal-title", editDialog);
+    
+            confirmButton.unbind("click");
+            confirmButton.bind("click", function() {
+                confirmFunction(myDialog);
+            });
+            myDialog.modal({
+                //minHeight: function() { return Math.max($.fn.modal.defaults.maxHeight() - 80, 250); }
+            }).css({
+                width: 'auto',
+                'margin-left': function() { return -($(this).width() /2); }
+            });
+        }
     }
 
     /* view model class, parameters for constructor, container to bind to

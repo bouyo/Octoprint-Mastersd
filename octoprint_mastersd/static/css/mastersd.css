@@ -95,6 +95,10 @@ hr {
     align-items: center;
     margin-bottom: 5px;
 }
+.curr-path{
+    display: flex;
+    align-items: center;
+}
 .folder-view{
     overflow: hidden;
     overflow-y: scroll;
@@ -115,4 +119,7 @@ hr {
 .list-item-name{
     display: flex;
     align-items: center;
+}
+.folder-item{
+    cursor: pointer;
 }
