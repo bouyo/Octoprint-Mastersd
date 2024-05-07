@@ -77,7 +77,14 @@
                 </li>
             </div>
             
-        </ul>        
+        </ul>
+        
+        <!-- Upload button and text -->
+        <div>
+            <input type="file" id="browse" name="fileupload" style="display: none" data-bind="event: { change: $root.fileSelected }"/>
+            <input class="btn" type="button" value="Upload to SD" data-bind="click: browseFile, attr: {disabled: isBusy}"></button>
+            <p>or drag & drop onto the area above</p>
+        </div>      
     </div>
 
     

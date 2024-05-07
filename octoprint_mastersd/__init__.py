@@ -1,3 +1,4 @@
+import os
 import serial
 import octoprint.plugin
 from octoprint.filemanager.destinations import FileDestinations
@@ -110,7 +111,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                 return False
 
     def get_info(self, s):
-        data = ''
+        data = '/sdcard\n'
         s.write(b'get_info\n')  # Send data
         while (True):
             a = s.readline()
@@ -267,6 +268,12 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
         self._logger.info("Attempting to write to SD!")
         data = flask.request.json
         name = data.get('name')
+        path = data.get('path')
+        path = path.replace("/sdcard", "", 1)
+        if path != "":
+            path = path + '/' + name
+        else:
+            path = name
 
         if (not name):
             return flask.Response(
@@ -276,12 +283,16 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
         self._logger.info("Searching for file %s", name)
         path_on_disk = self._file_manager.path_on_disk(self.local, name)
-        self._logger.info(f"Path: {path_on_disk}")
+        self._logger.info(f"Path: {path_on_disk}, Path on SD: {path}")
 
-        res = self.write_file(self.ser, path_on_disk, name)
+        res = self.write_file(self.ser, path_on_disk, path)
         if (res):
+            file_info = os.stat(path_on_disk)
+            file_size_bytes = file_info.st_size
+            size = round(file_size_bytes / 1024)
+            self._file_manager.remove_file(self.local, path_on_disk)
             self._logger.info("Writting successful!")
-            return flask.jsonify(success=True)
+            return flask.jsonify({'name': name, 'size': size})
 
         return flask.Response(
             "Could not connect to masterSD",
@@ -372,7 +383,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                 status=400
             )
 
-        short_path = path.replace("/sdcard/", "")
+        short_path = path.replace("/sdcard/", "", 1)
         self._logger.info(f"Deleting: {short_path}")       
         res = self.delete_file(self.ser, short_path)
         if (res):

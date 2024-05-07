@@ -133,6 +133,15 @@ $(function() {
             });                
         }
 
+        self.browseFile = function(){
+            var fileinput = document.getElementById("browse");
+            fileinput.click();
+        }
+
+        self.fileSelected = function(data, e){
+            self.uploadFiles(e.target.files);
+        }
+
         self.folderContent = ko.computed(function() {
             var activeFolder = self.activeFolder();
             if (self.sdFiles()){
@@ -162,7 +171,7 @@ $(function() {
                     return []
                 }
             }else{
-                log.info("Could not find active folder");
+                log.info("No sd card data");
                 return []
             }
             
@@ -389,6 +398,17 @@ $(function() {
         self.writeSuccess = function(data){
             log.info('Write success!');
             log.info(data);
+            var sdFiles = Object.assign({},self.sdFiles());
+            var file = {
+                folder: sdFiles.folders.indexOf(self.activeFolder()),
+                name: data.name,
+                size: data.size
+            };            
+            sdFiles.files.push(file);
+            sdFiles.free_size = (Number(sdFiles.free_size) - Number(file.size)).toString();
+            sdFiles.taken_size = (Number(sdFiles.taken_size) + Number(file.size)).toString();
+            self.sdFiles(Object.assign({},sdFiles));
+            log.info(sdFiles);
         }
 
         self.uploadSuccess = function(data){
@@ -406,7 +426,7 @@ $(function() {
                         headers: {
                             "X-Api-Key": UI_API_KEY,
                         },
-                        data: JSON.stringify({name: name}),
+                        data: JSON.stringify({name: name, path: self.activeFolder()}),
                         error: self.uploadFailed,
                         success: self.writeSuccess
                     });
