@@ -176,7 +176,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                     elif (res_c > 2):
                         return False
             return True
-        
+
     def delete_file(self, s, path):
         s.write(b'del ' + path.encode('ascii'))  # Send data
         while (True):
@@ -314,13 +314,16 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                 self._logger.info(
                     "Sending command to return control over serial")
                 ret = self.return_control(self.ser)
+                command = "M21"  # Init SD
             else:
                 self._logger.info(
                     "Sending command to take control over serial")
                 ret = self.take_control(self.ser)
+                command = "M22"  # Release SD
 
             if (ret):
                 self.control = not self.control
+                self._printer.commands(command)
                 return flask.jsonify(self.control)
             else:
                 self._logger.info("Failed to take control")
@@ -370,7 +373,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
             "Could not get info from the SD",
             status=400
         )
-    
+
     @octoprint.plugin.BlueprintPlugin.route("/delete", methods=["POST"])
     def mastersd_delete(self):
         self._logger.info("Attempting to delete from SD!")
@@ -384,7 +387,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
             )
 
         short_path = path.replace("/sdcard/", "", 1)
-        self._logger.info(f"Deleting: {short_path}")       
+        self._logger.info(f"Deleting: {short_path}")
         res = self.delete_file(self.ser, short_path)
         if (res):
             self._logger.info("Delete successful!")
