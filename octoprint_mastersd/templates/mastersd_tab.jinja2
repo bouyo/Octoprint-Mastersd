@@ -13,7 +13,7 @@
         <label class="checkbox">
             <input type="checkbox" id="mastersd-autoconnect">
             Auto-connect on server startup
-        </label>
+        </label>        
         <hr>
     </div>
 
@@ -81,9 +81,15 @@
         
         <!-- Upload button and text -->
         <div>
-            <input type="file" id="browse" name="fileupload" style="display: none" data-bind="event: { change: $root.fileSelected }"/>
-            <input class="btn" type="button" value="Upload to SD" data-bind="click: browseFile, attr: {disabled: isBusy}"></button>
-            <p>or drag & drop onto the area above</p>
+            <label class="run-checkbox">
+                <input data-bind="checked: autoRun" class="run-box" type="checkbox" id="mastersd-autorun">
+                Run print when upload is complete
+            </label>
+            <div class="upload-div">
+                <input type="file" id="browse" name="fileupload" style="display: none" data-bind="event: { change: $root.fileSelected }"/>
+                <input class="btn" type="button" value="Upload to SD" data-bind="click: browseFile, attr: {disabled: isBusy}"></button>
+                <p class="upload-hint">or drag & drop onto the area above</p>
+            </div>            
         </div>      
     </div>
 

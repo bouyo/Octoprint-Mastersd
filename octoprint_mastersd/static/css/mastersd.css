@@ -123,3 +123,22 @@ hr {
 .folder-item{
     cursor: pointer;
 }
+.run-checkbox{
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+.upload-div{
+    display: flex;
+    align-items: center;
+}
+.upload-hint{
+    padding-left: 5px;
+    margin-bottom: 0;
+    color: #90A4AE;
+}
+.run-box{
+    margin-top: 0 !important;
+    margin-right: 5px !important;
+}

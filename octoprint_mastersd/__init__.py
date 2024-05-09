@@ -1,5 +1,6 @@
 import os
 import serial
+import time
 import octoprint.plugin
 from octoprint.filemanager.destinations import FileDestinations
 import flask
@@ -84,6 +85,8 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                     ret = True
                 elif (a == b'false\n'):
                     ret = False
+                else:
+                    return None
 
     def take_control(self, s):
         self._logger.info("Taking control of the SD card!")
@@ -211,10 +214,11 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
         ports = data.get('ports')
 
         rate = "4000000"
+        timeout = 2.0  # 2 sec timeout
         for port in ports:
             self._logger.info("Attempting to connect to port: %s", port)
             try:
-                ser = serial.Serial(port, rate)
+                ser = serial.Serial(port, rate, timeout=timeout)
                 ret = self.is_control(ser)
                 if (ret is not None):
                     self.control = ret
@@ -269,6 +273,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
         data = flask.request.json
         name = data.get('name')
         path = data.get('path')
+        autorun = data.get('run')
         path = path.replace("/sdcard", "", 1)
         if path != "":
             path = path + '/' + name
@@ -287,12 +292,30 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
         res = self.write_file(self.ser, path_on_disk, path)
         if (res):
+            self._logger.info("Writting successful!")
+
             file_info = os.stat(path_on_disk)
             file_size_bytes = file_info.st_size
             size = round(file_size_bytes / 1024)
             self._file_manager.remove_file(self.local, path_on_disk)
-            self._logger.info("Writting successful!")
-            return flask.jsonify({'name': name, 'size': size})
+
+            self._logger.info(f"Autorun state: {autorun}")
+
+            if (self._printer.is_ready() and autorun):
+                self._logger.info("Autorun attempt!")
+                # Switch SD control
+                ret = self.return_control(self.ser)
+                if (ret):
+                    # Init SD card
+                    self._printer.commands("M21")
+                    # Run print
+
+                    self._printer.select_file(
+                        path='trolle~1.gco', sd=True, printAfterSelect=True)
+
+                    self._logger.info(f"Print from SD started!")
+
+            return flask.jsonify({'name': name, 'size': size, 'autorun': autorun})
 
         return flask.Response(
             "Could not connect to masterSD",

@@ -56,6 +56,8 @@ $(function() {
         self.dialogTitle = ko.observable('');
         self.dialogContent = ko.observable('');
 
+        self.autoRun = ko.observable(false);
+
         self.currentPath = ko.pureComputed(function() {
             var activeFolder = self.activeFolder();
             var folders_all = activeFolder.split('/');
@@ -398,17 +400,25 @@ $(function() {
         self.writeSuccess = function(data){
             log.info('Write success!');
             log.info(data);
-            var sdFiles = Object.assign({},self.sdFiles());
-            var file = {
-                folder: sdFiles.folders.indexOf(self.activeFolder()),
-                name: data.name,
-                size: data.size
-            };            
-            sdFiles.files.push(file);
-            sdFiles.free_size = (Number(sdFiles.free_size) - Number(file.size)).toString();
-            sdFiles.taken_size = (Number(sdFiles.taken_size) + Number(file.size)).toString();
-            self.sdFiles(Object.assign({},sdFiles));
-            log.info(sdFiles);
+            if (data.autorun){
+                log.info("Disconnected!");
+                self.sdFiles(null);
+                self.activeFolder('/sdcard');
+                self.isBusy(false);
+                self.sd_control(false);
+            }else{
+                var sdFiles = Object.assign({},self.sdFiles());
+                var file = {
+                    folder: sdFiles.folders.indexOf(self.activeFolder()),
+                    name: data.name,
+                    size: data.size
+                };            
+                sdFiles.files.push(file);
+                sdFiles.free_size = (Number(sdFiles.free_size) - Number(file.size)).toString();
+                sdFiles.taken_size = (Number(sdFiles.taken_size) + Number(file.size)).toString();
+                self.sdFiles(Object.assign({},sdFiles));
+                log.info(sdFiles);
+            }                        
         }
 
         self.uploadSuccess = function(data){
@@ -426,7 +436,7 @@ $(function() {
                         headers: {
                             "X-Api-Key": UI_API_KEY,
                         },
-                        data: JSON.stringify({name: name, path: self.activeFolder()}),
+                        data: JSON.stringify({name: name, path: self.activeFolder(), run: self.autoRun()}),
                         error: self.uploadFailed,
                         success: self.writeSuccess
                     });
