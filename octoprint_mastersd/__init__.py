@@ -1,8 +1,9 @@
 import os
 import serial
-import time
 import octoprint.plugin
+import logging
 from octoprint.filemanager.destinations import FileDestinations
+from octoprint.util.comm import parse_firmware_line
 import flask
 import sarge
 
@@ -198,6 +199,9 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
         self.ser = None
         self.control = False
 
+        self.find_name = ''
+        self.is_listing = False
+
     def get_assets(self):
         return dict(
             js=["js/mastersd.js"],
@@ -306,14 +310,12 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                 # Switch SD control
                 ret = self.return_control(self.ser)
                 if (ret):
+                    self.control = not self.control
                     # Init SD card
                     self._printer.commands("M21")
                     # Run print
-
-                    self._printer.select_file(
-                        path='trolle~1.gco', sd=True, printAfterSelect=True)
-
-                    self._logger.info(f"Print from SD started!")
+                    self.find_name = name
+                    self._logger.info(f"Finding short name...")
 
             return flask.jsonify({'name': name, 'size': size, 'autorun': autorun})
 
@@ -420,8 +422,43 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
             "Could not delete file!",
             status=400
         )
+    
+    def get_short_filename(self, comm, line, *args, **kwargs):
+        if self.find_name == '':
+            return line 
+        
+        if "Begin file list" in line and not self.is_listing:
+            self.is_listing = True
+            return line
+        
+        if "End file list" in line and self.is_listing:
+            self.is_listing = False
+            return line
+        
+        if self.find_name in line and self.is_listing:
+            self._logger.info(f"Found line with short name: {line}")
+            short_name = line.split(' ', 1)[0]
+            self._logger.info(f"Short name: {short_name}")
+
+            self._printer.select_file(
+                path=short_name.lower(), sd=True, printAfterSelect=True)
+            # Don't search anymore
+            self.find_name = ''
+
+        return line
 
 
 __plugin_name__ = "MasterSD"
 __plugin_pythoncompat__ = ">=3.7,<4"
 __plugin_implementation__ = MasterSDPlugin()
+
+def __plugin_load__():
+    plugin = MasterSDPlugin()
+
+    global __plugin_implementation__
+    __plugin_implementation__ = plugin
+
+    global __plugin_hooks__
+    __plugin_hooks__ = {
+        "octoprint.comm.protocol.gcode.received": plugin.get_short_filename
+    }
