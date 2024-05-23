@@ -312,7 +312,8 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                 if (ret):
                     self.control = not self.control
                     # Init SD card
-                    self._printer.commands("M21")
+                    self._printer.init_sd_card()
+                    # self._printer.commands("M21")
                     # Run print
                     self.find_name = name
                     self._logger.info(f"Finding short name...")
@@ -347,8 +348,12 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                 command = "M22"  # Release SD
 
             if (ret):
+                if (self.control):
+                    self._printer.init_sd_card()
+                else:
+                    self._printer.release_sd_card()
                 self.control = not self.control
-                self._printer.commands(command)
+                # self._printer.commands(command)
                 return flask.jsonify(self.control)
             else:
                 self._logger.info("Failed to take control")
@@ -422,19 +427,19 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
             "Could not delete file!",
             status=400
         )
-    
+
     def get_short_filename(self, comm, line, *args, **kwargs):
         if self.find_name == '':
-            return line 
-        
+            return line
+
         if "Begin file list" in line and not self.is_listing:
             self.is_listing = True
             return line
-        
+
         if "End file list" in line and self.is_listing:
             self.is_listing = False
             return line
-        
+
         if self.find_name in line and self.is_listing:
             self._logger.info(f"Found line with short name: {line}")
             short_name = line.split(' ', 1)[0]
@@ -451,6 +456,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 __plugin_name__ = "MasterSD"
 __plugin_pythoncompat__ = ">=3.7,<4"
 __plugin_implementation__ = MasterSDPlugin()
+
 
 def __plugin_load__():
     plugin = MasterSDPlugin()

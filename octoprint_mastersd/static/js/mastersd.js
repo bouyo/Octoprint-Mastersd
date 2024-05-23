@@ -239,6 +239,10 @@ $(function() {
             if (self.sd_control() === null || !self.connected()){
                 return true;
             } else {
+                if (!self.sd_control() && (self.printer.isBusy() || self.printer.isLoading())){
+                    // can't take control
+                    return true;
+                }
                 return false;
             }
         });
