@@ -86,14 +86,14 @@ hr {
     margin: 0;
 }
 .location-icon{
-    padding-right: 7px;
+    padding-right: 10px;
     color: #90A4AE;
     line-height: normal;
 }
 .sd-folder-div{
     display: flex;
     align-items: center;
-    margin-bottom: 5px;
+    margin-bottom: 10px;
 }
 .curr-path{
     display: flex;
@@ -119,9 +119,11 @@ hr {
 .list-item-name{
     display: flex;
     align-items: center;
+    width: 330px;
 }
 .folder-item{
     cursor: pointer;
+    margin-bottom: 0;
 }
 .run-checkbox{
     display: flex;
@@ -130,15 +132,25 @@ hr {
     margin-bottom: 10px;
 }
 .upload-div{
+    margin-top: 10px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
 }
 .upload-hint{
-    padding-left: 5px;
     margin-bottom: 0;
+    margin-top: 2px;
     color: #90A4AE;
 }
 .run-box{
     margin-top: 0 !important;
     margin-right: 5px !important;
+}
+
+.list-name {
+    margin-bottom: 0px;
+    margin-left: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }

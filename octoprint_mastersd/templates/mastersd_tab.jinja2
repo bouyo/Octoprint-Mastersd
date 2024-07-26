@@ -49,10 +49,10 @@
         
         <div class="sd-folder-div">
             <i data-bind="click: folderClick.bind($data, {path: '/sdcard'})" class="fas fa-sd-card fa-lg location-icon folder-item"></i>
-            <i class="fas fa-chevron-right fa-sm location-icon"></i>
+            <i class="fas fa-caret-right fa-sm location-icon"></i>
             <div class="curr-path" data-bind="foreach: currentPath">
                 <p class="location-icon folder-item" data-bind="text: name, click: $parent.folderClick"></p>
-                <i class="fas fa-chevron-right fa-sm location-icon"></i>
+                <i class="fas fa-caret-right fa-sm location-icon"></i>
             </div>
         </div>
         
@@ -60,8 +60,8 @@
             <div data-bind="foreach: visibleFolders">
                 <li class="list-item">
                     <div class="list-item-name folder-item" data-bind="click: $parent.folderClick">
-                        <i class="fas fa-folder"></i>
-                        <p data-bind="text: name"></p>
+                        <i class="fa-lg fas fa-folder"></i>
+                        <p class="list-name" data-bind="text: name"></p>
                     </div>
                     <i class="fas fa-trash"></i>
                 </li>
@@ -69,10 +69,10 @@
             <div data-bind="foreach: visibleFiles">
                 <li class="list-item">
                     <div class="list-item-name">
-                        <i class="fas fa-file"></i>
-                        <p data-bind="text: name"></p>
+                        <i class="fa-lg far fa-file"></i>
+                        <p class="list-name" data-bind="text: name"></p>
                     </div>
-                    <p data-bind="text: $root.getSizeUnit(Number(size))"></p>
+                    <p class="list-name" data-bind="text: $root.getSizeUnit(Number(size))"></p>
                     <i class="fas fa-trash" data-bind="click: $parent.deleteFile"></i>
                 </li>
             </div>
@@ -81,15 +81,22 @@
         
         <!-- Upload button and text -->
         <div>
+            <div class="upload-div">
+                <input type="file" id="browse" name="fileupload" style="display: none" data-bind="event: { change: $root.fileSelected }"/>
+                <span class="btn" data-bind="click: browseFile, attr: {disabled: isBusy}">
+                    <i class="fas fa-upload"></i>
+                    Upload to SD
+                </span>
+                <span class="btn" data-bind="click: addDirClick, attr: {disabled: isBusy}">
+                    <i class="fas fa-folder-plus"></i>
+                    Create folder
+                </span>                
+            </div>
+            <p class="upload-hint">or drag & drop onto the area above</p>
             <label class="run-checkbox">
                 <input data-bind="checked: autoRun" class="run-box" type="checkbox" id="mastersd-autorun">
                 Run print when upload is complete
             </label>
-            <div class="upload-div">
-                <input type="file" id="browse" name="fileupload" style="display: none" data-bind="event: { change: $root.fileSelected }"/>
-                <input class="btn" type="button" value="Upload to SD" data-bind="click: browseFile, attr: {disabled: isBusy}"></button>
-                <p class="upload-hint">or drag & drop onto the area above</p>
-            </div>            
         </div>      
     </div>
 
@@ -108,5 +115,5 @@
             <button class="btn btn-danger btn-confirm">Confirm</button>
         </div>
     </div>
-    
+
 </div>

@@ -194,6 +194,37 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
             else:
                 self._logger.info(a.decode('ascii'))
 
+    def make_dir(self, s, name):
+        self._logger.info("Creating a directory on the SD card")
+
+        s.write(b'mkdir ' + name.encode('ascii'))  # Send data
+        while (True):
+            a = s.readline()
+            if (a == b'done\n'):
+                self._logger.info("Success!")
+                return True
+            elif (a == b'failed\n'):
+                self._logger.info("Make directory failed!")
+                return False
+            else:
+                self._logger.info(a.decode('ascii'))
+
+    def remove_dir(self, s, path):
+        self._logger.info(
+            "Removing a directory and subdirectories on the SD card!")
+
+        s.write(b'rmdir ' + path.encode('ascii'))  # Send data
+        while (True):
+            a = s.readline()
+            if (a == b'done\n'):
+                self._logger.info("Success!")
+                return True
+            elif (a == b'failed\n'):
+                self._logger.info("Remove directory failed!")
+                return False
+            else:
+                self._logger.info(a.decode('ascii'))
+
     def on_after_startup(self):
         self._logger.info("Master SD backend")
         self.ser = None
@@ -425,6 +456,30 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
         return flask.Response(
             "Could not delete file!",
+            status=400
+        )
+
+    @octoprint.plugin.BlueprintPlugin.route("/mkdir", methods=["POST"])
+    def mastersd_mkdir(self):
+        self._logger.info("Attempting to create directory on SD card!")
+        data = flask.request.json
+        path = data.get('path')
+
+        if (not path):
+            return flask.Response(
+                "Path is None",
+                status=400
+            )
+
+        short_path = path.replace("/sdcard/", "", 1)
+        self._logger.info(f"Creating path: {short_path}")
+        res = self.make_dir(self.ser, short_path)
+        if (res):
+            self._logger.info("Folder created successfully!")
+            return flask.jsonify(success=True)
+
+        return flask.Response(
+            "Could not create folder!",
             status=400
         )
 

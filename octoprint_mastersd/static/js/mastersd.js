@@ -359,6 +359,12 @@ $(function() {
             self.sdFiles(null);
             self.activeFolder('/sdcard');
         }
+
+        self.addDirClick = function(){
+            log.info("Add directory clicked!");
+
+            
+        }
         
         self.uploadFiles = function(files){
             log.info(files);
