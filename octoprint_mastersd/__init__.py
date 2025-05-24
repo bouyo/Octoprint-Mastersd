@@ -3,7 +3,8 @@ import serial
 import octoprint.plugin
 import logging
 from octoprint.filemanager.destinations import FileDestinations
-from octoprint.util.comm import parse_firmware_line
+from octoprint.util.comm import parse_firmware_line, serialList
+from octoprint.util import RepeatedTimer
 import flask
 import sarge
 
@@ -11,12 +12,17 @@ import sarge
 class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                      octoprint.plugin.TemplatePlugin,
                      octoprint.plugin.AssetPlugin,
-                     octoprint.plugin.BlueprintPlugin):
+                     octoprint.plugin.BlueprintPlugin,
+                     octoprint.plugin.SettingsPlugin,
+                     octoprint.plugin.EventHandlerPlugin):
 
     ser = None
     control = False
     local = FileDestinations.LOCAL
     ADD_MAX = 64
+
+    last_ports = None
+    autorefresh = None
 
     sd_data = None
 
@@ -233,6 +239,14 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
         self.find_name = ''
         self.is_listing = False
 
+    def on_event(self, event, payload):
+
+        if event == octoprint.events.Events.CONNECTED:
+            self._logger.info("Printer connected event triggered!")
+            self.run_autorefresh()
+        elif event == octoprint.events.Events.DISCONNECTED:
+            self._logger.info("Printer disconnected event triggered!")
+
     def get_assets(self):
         return dict(
             js=["js/mastersd.js"],
@@ -284,6 +298,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                         "Sending command to return control over serial")
                     ret = self.return_control(self.ser)
                     if (ret):
+                        self._printer.init_sd_card()
                         self.control = not self.control
                     else:
                         self._logger.info("Failed to return control")
@@ -371,12 +386,12 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                 self._logger.info(
                     "Sending command to return control over serial")
                 ret = self.return_control(self.ser)
-                command = "M21"  # Init SD
+                # command = "M21"  # Init SD
             else:
                 self._logger.info(
                     "Sending command to take control over serial")
                 ret = self.take_control(self.ser)
-                command = "M22"  # Release SD
+                # command = "M22"  # Release SD
 
             if (ret):
                 if (self.control):
@@ -482,6 +497,51 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
             "Could not create folder!",
             status=400
         )
+
+    # Custom port refreshing
+
+    def refresh_serial_list(self):
+
+        if not self._printer.is_operational():
+            return
+
+        new_ports = sorted(serialList())
+        if new_ports != self.last_ports:
+            self._logger.info(
+                "Custom serial port list was updated, refreshing the port list in the frontend"
+            )
+            self._event_bus.fire(
+                octoprint.events.Events.CONNECTIONS_AUTOREFRESHED,
+                payload={"ports": new_ports},
+            )
+        self.last_ports = new_ports
+
+    def autorefresh_active(self):
+        # Autorefresh when printer is connected
+        return self._printer.is_operational()
+
+    def autorefresh_stopped(self):
+
+        self._logger.info("Custom autorefresh of serial port list stopped")
+        self.autorefresh = None
+
+    def run_autorefresh(self):
+
+        if self.autorefresh is not None:
+            self.autorefresh.cancel()
+            self.autorefresh = None
+
+        self.autorefresh = RepeatedTimer(
+            2.0,
+            self.refresh_serial_list,
+            condition=self.autorefresh_active,
+            on_finish=self.autorefresh_stopped,
+        )
+        self.autorefresh.name = "Custom serial autorefresh worker"
+
+        self._logger.info(
+            "Starting custom autorefresh of serial port list")
+        self.autorefresh.start()
 
     def get_short_filename(self, comm, line, *args, **kwargs):
         if self.find_name == '':

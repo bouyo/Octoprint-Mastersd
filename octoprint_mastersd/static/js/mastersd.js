@@ -455,7 +455,18 @@ $(function() {
         }
 
         self.portOptions = ko.computed(function() {
-            const port_list = self.connection.portOptions();
+            const port_list = self.connection.portOptions().slice();
+
+            // Remove port if it's taken by the printer
+            if (self.connection.isOperational()){
+                if (self.connection.selectedPort()){
+                    const i = port_list.indexOf(self.connection.selectedPort());
+                    if (i > -1) {
+                        port_list.splice(i, 1);
+                    }
+                }
+            }
+            
             const regex = new RegExp('/dev/ttyACM*');
             const sd_ports = port_list.filter((port) => regex.test(port));
             sd_ports.unshift("AUTO");
