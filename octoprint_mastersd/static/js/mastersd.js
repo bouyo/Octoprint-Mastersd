@@ -126,7 +126,7 @@ $(function() {
         }
 
         self.deleteFile = function(file){
-            self.dialogTitle("Delete " + file.name);
+            self.dialogTitle("Delete file");
             self.dialogContent("Are you sure you want to delete " + file.name + "?")
             self.showDialog("#sidebar_simpleDialog", function(dialog){             
                 var sdFiles = Object.assign({},self.sdFiles());   
@@ -137,6 +137,7 @@ $(function() {
 
         self.browseFile = function(){
             var fileinput = document.getElementById("browse");
+            fileinput.value = null;
             fileinput.click();
         }
 
@@ -375,31 +376,45 @@ $(function() {
                     var files_size = 0;
                     data.append('file', files[0]);
                     files_size += files[0].size
-                                        
+                    
+                    var visibleFiles = self.visibleFiles();
+                    log.info(files[0]);
+                    log.info(visibleFiles);
                     log.info("Total file size: " + files_size);
                     if (files_size > 250000000){
                         log.info("Max upload limited to 250MB");
                     } else {
-                        $.ajax({
-                            url: "/api/files/local",
-                            type: 'POST',
-                            processData: false,
-                            contentType: false,
-                            cache: false,
-                            enctype: 'multipart/form-data',
-                            contentLength: files_size,
-                            data: data,
-                            headers: {
-                                "X-Api-Key": UI_API_KEY,
-                            },
-                            error: self.uploadFailed,
-                            success: self.uploadSuccess
+                        let file_id = visibleFiles.findIndex((visibleFile) => {
+                            if (visibleFile.name == files[0].name){
+                                return true
+                            }
+                                return false
                         });
-                    }
-                    
+                        log.info("File ID: " + file_id);
+                        if (file_id > -1){
+                            self.dialogTitle("File already exists");
+                            self.dialogContent("Cannot write two files with the same name");
+                            self.showDialog("#sidebar_simpleWarning", null); 
+                        } else {
+                            $.ajax({
+                                url: "/api/files/local",
+                                type: 'POST',
+                                processData: false,
+                                contentType: false,
+                                cache: false,
+                                enctype: 'multipart/form-data',
+                                contentLength: files_size,
+                                data: data,
+                                headers: {
+                                    "X-Api-Key": UI_API_KEY,
+                                },
+                                error: self.uploadFailed,
+                                success: self.uploadSuccess
+                            });                            
+                        }                        
+                    }                    
                 }                
-            }          
-
+            }
         }
 
         self.uploadFailed = function(data){
@@ -595,14 +610,16 @@ $(function() {
             // show dialog
             // sidebar_deleteFilesDialog
             var myDialog = $(dialogId);
-            var confirmButton = $("button.btn-confirm", myDialog);
+            var confirmButton = null;
+            if (dialogId == '#sidebar_simpleDialog'){
+                confirmButton = $("button.btn-confirm", myDialog);
+                confirmButton.unbind("click");
+                confirmButton.bind("click", function() {
+                    confirmFunction(myDialog);
+                });
+            }
             var cancelButton = $("button.btn-cancel", myDialog);
-            //var dialogTitle = $("h3.modal-title", editDialog);
-    
-            confirmButton.unbind("click");
-            confirmButton.bind("click", function() {
-                confirmFunction(myDialog);
-            });
+                        
             myDialog.modal({
                 //minHeight: function() { return Math.max($.fn.modal.defaults.maxHeight() - 80, 250); }
             }).css({
