@@ -125,6 +125,85 @@ $(function() {
             });
         }
 
+        self.postFolderDelete = function(path){
+            var sdFiles = Object.assign({},self.sdFiles());
+
+            var rmFoldersIds = [];
+            var rmFilesIds = [];
+            var posChanges = [];
+            var sizeDeleted = 0;
+
+            var newFolders = sdFiles.folders.filter((folder, index) => {
+                if (folder == path || folder.startsWith(path + '/')){
+                    rmFoldersIds.push(index);
+                    return false;
+                }
+                return true;
+            });
+
+            sdFiles.files.forEach((file, index) => {
+                if (rmFoldersIds.includes(file.folder)){
+                    rmFilesIds.push(index);
+                    sizeDeleted += Number(file.size);
+                    return
+                }
+                var posChange = 0;
+                rmFoldersIds.forEach((id) => {
+                    if (id < file.folder){
+                        posChange += 1;
+                    }
+                });
+                posChanges.push(posChange);
+            });
+
+            rmFilesIds.forEach((id) => {
+                sdFiles.files.splice(id,1);
+            });
+            posChanges.forEach((n, id) => {
+                sdFiles.files[id].folder -= n;
+            });
+            
+            sdFiles.folders = newFolders;
+        
+            sdFiles.free_size = (Number(sdFiles.free_size) + sizeDeleted).toString();
+            sdFiles.taken_size = (Number(sdFiles.taken_size) - sizeDeleted).toString();
+            
+            self.sdFiles(Object.assign({},sdFiles));
+        }
+
+        self.attemptFolderDelete = function(folder){
+            var path = folder.path;
+            log.info("Attempting to delete " + path);
+            $.ajax({
+                url: "plugin/mastersd/rmdir",
+                contentType: "application/json; charset=utf-8",
+                type: "POST",
+                dataType: "json",
+                headers: {
+                    "X-Api-Key": UI_API_KEY,
+                },
+                data: JSON.stringify({path: path}),
+                error: (data) => {
+                    log.info("Error!");
+                    log.info(data);
+                },
+                success: (data) => {
+                    log.info("Folder deleted!");
+                    self.postFolderDelete(path);                    
+                }
+            });
+        }
+
+        self.deleteFolder = function(folder){
+            self.dialogTitle("Delete folder");
+            self.dialogContent("Are you sure you want to delete " + folder.name + " and all of it's content?")
+            self.showDialog("#sidebar_simpleDialog", function(dialog){
+                var sdFiles = Object.assign({},self.sdFiles());   
+                self.attemptFolderDelete(folder);
+                dialog.modal('hide');
+            });                
+        }
+
         self.deleteFile = function(file){
             self.dialogTitle("Delete file");
             self.dialogContent("Are you sure you want to delete " + file.name + "?")
@@ -361,10 +440,60 @@ $(function() {
             self.activeFolder('/sdcard');
         }
 
-        self.addDirClick = function(){
-            log.info("Add directory clicked!");
-
+        self.attemptMakeDir = function(dirName, activeFolder){
+            var path = activeFolder + '/' + dirName;
+            log.info("Attempting to create folder: " + path);
             
+            $.ajax({
+                url: "plugin/mastersd/mkdir",
+                contentType: "application/json; charset=utf-8",
+                type: "POST",
+                dataType: "json",
+                headers: {
+                    "X-Api-Key": UI_API_KEY,
+                },
+                data: JSON.stringify({path: path}),
+                error: (data) => {
+                    log.info("Error!");
+                    log.info(data);
+                },
+                success: (data) => {
+                    log.info("Folder created!");
+                    var sdFiles = Object.assign({},self.sdFiles());
+                    sdFiles.folders.push(path);
+                    log.info(sdFiles);
+                    self.sdFiles(Object.assign({},sdFiles));
+                }
+            });            
+        }
+
+        self.addDirClick = function(){
+            self.dialogTitle("Create new directory");
+            self.dialogContent("Name of the new directory:")
+            self.showDialog("#sidebar_newFolder", function(dialog){
+                var activeFolder = self.activeFolder();
+                var dirNameInput = document.getElementById("new-folder-name");
+                var dirName = dirNameInput.value;
+                log.info("Folder name: " + dirName);
+                
+                //Check if folder name is missing
+                if (dirName.length < 1){
+                    return
+                }
+
+                // Check if folder name is taken
+                var visibleFolders = self.visibleFolders();
+                var folder_id = visibleFolders.findIndex((folder) => {
+                    return (folder.name == dirName)
+                })
+                if (folder_id > -1){
+                    return
+                }
+                
+                //var sdFiles = Object.assign({},self.sdFiles());   
+                self.attemptMakeDir(dirName, activeFolder);
+                dialog.modal('hide');
+            });    
         }
         
         self.uploadFiles = function(files){
@@ -606,12 +735,20 @@ $(function() {
             log.info(self.printer);
         }
 
+        self.onStartupComplete = function(){
+            log.info('Startup done');
+            $(document).on('hidden.bs.modal', '#sidebar_newFolder', function() {
+                log.info("Modal hidden");
+                $('#new-folder-name').val('');
+            });
+        }
+
         self.showDialog = function(dialogId, confirmFunction){
             // show dialog
             // sidebar_deleteFilesDialog
             var myDialog = $(dialogId);
             var confirmButton = null;
-            if (dialogId == '#sidebar_simpleDialog'){
+            if (dialogId != '#sidebar_simpleWarning'){
                 confirmButton = $("button.btn-confirm", myDialog);
                 confirmButton.unbind("click");
                 confirmButton.bind("click", function() {

@@ -498,6 +498,30 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
             status=400
         )
 
+    @octoprint.plugin.BlueprintPlugin.route("/rmdir", methods=["POST"])
+    def mastersd_rmdir(self):
+        self._logger.info("Attempting to delete directory on SD card!")
+        data = flask.request.json
+        path = data.get('path')
+
+        if (not path):
+            return flask.Response(
+                "Path is None",
+                status=400
+            )
+
+        short_path = path.replace("/sdcard/", "", 1)
+        self._logger.info(f"Deleting path: {short_path}")
+        res = self.remove_dir(self.ser, short_path)
+        if (res):
+            self._logger.info("Folder deleted successfully!")
+            return flask.jsonify(success=True)
+
+        return flask.Response(
+            "Could not delete folder!",
+            status=400
+        )
+
     # Custom port refreshing
 
     def refresh_serial_list(self):

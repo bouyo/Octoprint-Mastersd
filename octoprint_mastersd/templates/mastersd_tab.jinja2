@@ -63,7 +63,7 @@
                         <i class="fa-lg fas fa-folder"></i>
                         <p class="list-name" data-bind="text: name"></p>
                     </div>
-                    <i class="fas fa-trash"></i>
+                    <i class="fas fa-trash" data-bind="click: $parent.deleteFolder"></i>
                 </li>
             </div>
             <div data-bind="foreach: visibleFiles">
@@ -127,6 +127,22 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-cancel" data-dismiss="modal" aria-hidden="true">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Modal-Dialog text box -->
+    <div id="sidebar_newFolder" class="modal hide fade">
+        <div class="modal-header">
+            <a href="#" class="close" data-dismiss="modal" aria-hidden="true">&times;</a>
+            <h3 class="modal-title" data-bind="text: dialogTitle"></h3>
+        </div>
+        <div class="modal-body">
+            <h4 data-bind="text: dialogContent"></h4>
+            <input type="text" name='folder-name' id="new-folder-name"/>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-cancel" data-dismiss="modal" aria-hidden="true">Cancel</button>
+            <button class="btn btn-danger btn-confirm">Create</button>
         </div>
     </div>
 
