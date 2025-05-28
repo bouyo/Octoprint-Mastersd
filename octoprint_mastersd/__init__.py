@@ -132,7 +132,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                 data += a.decode('ascii')
                 self._logger.info(a.decode('ascii'))
 
-    def write_file(self, s, path, name):
+    def write_file(self, s, path, name, total_size):
         self._logger.info("Writing to the SD card!")
 
         # 1 -- create file
@@ -150,6 +150,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                 return False
 
         self._logger.info("Trying to read from file...")
+        self._logger.info("Total size: %d", total_size)
         with open(path, "r") as f:
             counter = 0
             while (True):
@@ -182,6 +183,17 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                     res_c += 1
                     a = s.readline()
                     if (a == b'done\n'):
+
+                        # Refresh upload progress
+                        if (counter % 4200 == 0):
+                            uploaded = 60 + (counter - 1)*64
+                            perc = (uploaded/total_size)*100
+
+                            if (perc < 100):
+                                self._event_bus.fire(
+                                    octoprint.events.Events.PLUGIN_MASTERSD_UPLOAD_PROGRESS,
+                                    payload={"percentage": int(perc // 1)},
+                                )
                         break
                     elif (res_c > 2):
                         return False
@@ -237,6 +249,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
         self.control = False
 
         self.find_name = ''
+        self.find_path = ''
         self.is_listing = False
 
     def on_event(self, event, payload):
@@ -338,15 +351,15 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
         self._logger.info("Searching for file %s", name)
         path_on_disk = self._file_manager.path_on_disk(self.local, name)
+        file_info = os.stat(path_on_disk)
+        file_size_bytes = file_info.st_size
+        size = round(file_size_bytes / 1024)
         self._logger.info(f"Path: {path_on_disk}, Path on SD: {path}")
 
-        res = self.write_file(self.ser, path_on_disk, path)
+        res = self.write_file(self.ser, path_on_disk, path, file_size_bytes)
         if (res):
-            self._logger.info("Writting successful!")
 
-            file_info = os.stat(path_on_disk)
-            file_size_bytes = file_info.st_size
-            size = round(file_size_bytes / 1024)
+            self._logger.info("Writting successful!")
             self._file_manager.remove_file(self.local, path_on_disk)
 
             self._logger.info(f"Autorun state: {autorun}")
@@ -361,6 +374,10 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                     self._printer.init_sd_card()
                     # self._printer.commands("M21")
                     # Run print
+                    if (path[0] == '/'):
+                        path = path.replace(name, "", 1)
+                        self.find_path = path.upper()
+
                     self.find_name = name
                     self._logger.info(f"Finding short name...")
 
@@ -580,6 +597,15 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
             return line
 
         if self.find_name in line and self.is_listing:
+
+            if self.find_path != '':
+                if self.find_path in line:
+                    short_path = self.find_path.lower()
+                else:
+                    return line
+            else:
+                short_path = ''
+
             self._logger.info(f"Found line with short name: {line}")
             short_name = line.split(' ', 1)[0]
             self._logger.info(f"Short name: {short_name}")
@@ -588,8 +614,13 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
                 path=short_name.lower(), sd=True, printAfterSelect=True)
             # Don't search anymore
             self.find_name = ''
+            self.find_path = ''
 
         return line
+
+    # Upload progress tracking custom event
+    def register_custom_events(*args, **kwargs):
+        return ["upload_progress"]
 
 
 __plugin_name__ = "MasterSD"
@@ -605,5 +636,6 @@ def __plugin_load__():
 
     global __plugin_hooks__
     __plugin_hooks__ = {
-        "octoprint.comm.protocol.gcode.received": plugin.get_short_filename
+        "octoprint.comm.protocol.gcode.received": plugin.get_short_filename,
+        "octoprint.events.register_custom_events": __plugin_implementation__.register_custom_events,
     }

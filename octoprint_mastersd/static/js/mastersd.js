@@ -58,6 +58,13 @@ $(function() {
 
         self.autoRun = ko.observable(false);
 
+        self.uploadProgress = null;
+        self.uploadProgressBar = null;
+
+        self.uploadProgressText = ko.observable(null);
+        self.uploadProgressPercentage = ko.observable(null);
+
+
         self.currentPath = ko.pureComputed(function() {
             var activeFolder = self.activeFolder();
             var folders_all = activeFolder.split('/');
@@ -549,6 +556,11 @@ $(function() {
         self.uploadFailed = function(data){
             log.info("Upload failed!");
             log.info(data);
+
+            self.uploadProgress.removeClass("progress-striped").removeClass("active");
+            self.uploadProgressBar.css("width", "0");
+            self.uploadProgressText("");
+            self.uploadProgressPercentage(0);
         }
 
         self.writeSuccess = function(data){
@@ -572,7 +584,24 @@ $(function() {
                 sdFiles.taken_size = (Number(sdFiles.taken_size) + Number(file.size)).toString();
                 self.sdFiles(Object.assign({},sdFiles));
                 log.info(sdFiles);
-            }                        
+            } 
+            
+            self.uploadProgress.removeClass("progress-striped").removeClass("active");
+            self.uploadProgressBar.css("width", "0");
+            self.uploadProgressText("");
+            self.uploadProgressPercentage(0);
+        }
+
+        self._setProgressBar = function (percentage, text, active) {
+            self.uploadProgressBar.css("width", percentage + "%");
+            self.uploadProgressText(text);
+            self.uploadProgressPercentage(percentage);
+
+            if (active) {
+                self.uploadProgress.addClass("progress-striped active");
+            } else {
+                self.uploadProgress.removeClass("progress-striped active");
+            }
         }
 
         self.uploadSuccess = function(data){
@@ -580,6 +609,12 @@ $(function() {
             log.info(data);
 
             if (data.done){
+                // Progress bar
+                self.uploadProgress.addClass("progress-striped").addClass("active");
+                self.uploadProgressBar.css("width", "100%");
+                self.uploadProgressPercentage(100);
+                self.uploadProgressText(gettext("Uploading ..."));
+
                 var name = data.files.local.path;
                 if (name){
                     $.ajax({
@@ -597,6 +632,7 @@ $(function() {
                 }
             }            
         }
+     
 
         self.portOptions = ko.computed(function() {
             const port_list = self.connection.portOptions().slice();
@@ -730,17 +766,33 @@ $(function() {
         }
         */
 
+        // Change the upload percantage
+        self.onEventPluginMastersdUploadProgress = function(payload){
+
+            var progress = parseInt(payload.percentage);
+            var uploaded = progress >= 100;
+
+            log.info("Received percentage " + payload.percentage);
+            self._setProgressBar(
+                progress,
+                gettext(payload.percentage + " %"),
+                uploaded
+            );
+        }
+
         self.onBeforeBinding = function() {
             log.info("Printer State Loaded:");
             log.info(self.printer);
         }
 
         self.onStartupComplete = function(){
-            log.info('Startup done');
+
             $(document).on('hidden.bs.modal', '#sidebar_newFolder', function() {
                 log.info("Modal hidden");
                 $('#new-folder-name').val('');
             });
+            self.uploadProgress = $("#mastersd_upload_progress");
+            self.uploadProgressBar = $(".bar", self.uploadProgress);
         }
 
         self.showDialog = function(dialogId, confirmFunction){
