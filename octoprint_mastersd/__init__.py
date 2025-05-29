@@ -25,6 +25,7 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
     autorefresh = None
 
     sd_data = None
+    busy = False
 
     def list_find(self, l, item):
         if item in l:
@@ -302,6 +303,12 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
     @octoprint.plugin.BlueprintPlugin.route("/disconnect", methods=["GET"])
     def mastersd_disconnect(self):
+        if self.busy:
+            return flask.Response(
+                "Device is busy!",
+                status=400
+            )
+
         self._logger.info("Attempting to disconnect from masterSD!")
 
         if (self.ser):
@@ -332,6 +339,12 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
     @octoprint.plugin.BlueprintPlugin.route("/write_sd", methods=["POST"])
     def mastersd_write(self):
+        if self.busy:
+            return flask.Response(
+                "Device is busy!",
+                status=400
+            )
+
         self._logger.info("Attempting to write to SD!")
         data = flask.request.json
         name = data.get('name')
@@ -356,9 +369,11 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
         size = round(file_size_bytes / 1024)
         self._logger.info(f"Path: {path_on_disk}, Path on SD: {path}")
 
+        self.busy = True
         res = self.write_file(self.ser, path_on_disk, path, file_size_bytes)
-        if (res):
+        self.busy = False
 
+        if (res):
             self._logger.info("Writting successful!")
             self._file_manager.remove_file(self.local, path_on_disk)
 
@@ -390,6 +405,12 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
     @octoprint.plugin.BlueprintPlugin.route("/switch_control", methods=["GET"])
     def mastersd_switch_control(self):
+        if self.busy:
+            return flask.Response(
+                "Device is busy!",
+                status=400
+            )
+
         self._logger.info("Attempting to switch control of the SD!")
 
         if (self.ser is None):
@@ -432,6 +453,12 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
     @octoprint.plugin.BlueprintPlugin.route("/get_info", methods=["GET"])
     def mastersd_get_info(self):
+        if self.busy:
+            return flask.Response(
+                "Device is busy!",
+                status=400
+            )
+
         self._logger.info("Attempting to get info from the SD!")
 
         if (self.ser is None):
@@ -469,6 +496,12 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
     @octoprint.plugin.BlueprintPlugin.route("/delete", methods=["POST"])
     def mastersd_delete(self):
+        if self.busy:
+            return flask.Response(
+                "Device is busy!",
+                status=400
+            )
+
         self._logger.info("Attempting to delete from SD!")
         data = flask.request.json
         path = data.get('path')
@@ -493,6 +526,12 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
     @octoprint.plugin.BlueprintPlugin.route("/mkdir", methods=["POST"])
     def mastersd_mkdir(self):
+        if self.busy:
+            return flask.Response(
+                "Device is busy!",
+                status=400
+            )
+
         self._logger.info("Attempting to create directory on SD card!")
         data = flask.request.json
         path = data.get('path')
@@ -517,6 +556,12 @@ class MasterSDPlugin(octoprint.plugin.StartupPlugin,
 
     @octoprint.plugin.BlueprintPlugin.route("/rmdir", methods=["POST"])
     def mastersd_rmdir(self):
+        if self.busy:
+            return flask.Response(
+                "Device is busy!",
+                status=400
+            )
+
         self._logger.info("Attempting to delete directory on SD card!")
         data = flask.request.json
         path = data.get('path')

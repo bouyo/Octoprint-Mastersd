@@ -475,8 +475,8 @@ $(function() {
         }
 
         self.addDirClick = function(){
-            self.dialogTitle("Create new directory");
-            self.dialogContent("Name of the new directory:")
+            self.dialogTitle("Create folder");
+            self.dialogContent("Name of the new folder:")
             self.showDialog("#sidebar_newFolder", function(dialog){
                 var activeFolder = self.activeFolder();
                 var dirNameInput = document.getElementById("new-folder-name");
